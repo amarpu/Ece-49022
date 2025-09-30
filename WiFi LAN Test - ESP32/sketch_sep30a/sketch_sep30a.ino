@@ -25,7 +25,7 @@ const char* eap_password = "HA_YOU_CANT_SEE_MY_PASSWORD";  //Change this
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883
 #define AIO_USERNAME    "XiaohanYu1"
-#define AIO_KEY         "aio_NTnz10gHo8ptPPrgOyJGFKTpS3dd"
+#define AIO_KEY         "_aio_NTnz10gHo8ptPPrgOyJGFKTpS3dd" // CHANGE THSI TOO
 
 // --- Onboard RGB LED (NeoPixel) Setup ---
 #define RGB_LED_PIN 38
