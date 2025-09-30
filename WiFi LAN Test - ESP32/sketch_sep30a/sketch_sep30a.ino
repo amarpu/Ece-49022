@@ -10,6 +10,8 @@
  * - Adafruit MQTT Library
  */
 
+ // IF THIS DOESN'T WORK, LET LUCAS KNOW
+
 #include <WiFi.h>
 #include "esp_eap_client.h"
 #include <Adafruit_NeoPixel.h>
@@ -19,7 +21,7 @@
 // --- WiFi Credentials (Your School's Network) ---
 const char* ssid = "PAL3.0";
 const char* eap_username = "yu1206";
-const char* eap_password = "HA_YOU_CANT_SEE_MY_PASSWORD";  //Change this
+const char* eap_password = "PASSWORD";  //Change this
 
 // --- Adafruit IO MQTT Broker Configuration ---
 #define AIO_SERVER      "io.adafruit.com"

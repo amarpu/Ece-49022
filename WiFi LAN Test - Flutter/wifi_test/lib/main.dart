@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // For json decoding
 
+ // IF THIS DOESN'T WORK, LET LUCAS KNOW
+
 void main() {
   runApp(const ESP32ControlApp());
+
 }
 
 class ESP32ControlApp extends StatelessWidget {
@@ -32,7 +35,7 @@ class ControlScreen extends StatefulWidget {
 class _ControlScreenState extends State<ControlScreen> {
   final TextEditingController _ipController = TextEditingController();
   String _ledStatus = 'Unknown';
-  String _feedbackMessage = 'Enter ESP32 IP Address';
+  String _feedbackMessage = 'Enter ESP32 IP Address: ';
   bool _isLoading = false;
 
   @override
