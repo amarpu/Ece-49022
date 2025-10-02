@@ -1,32 +1,22 @@
-/*
- * ESP32-S3 Web Server for WPA2-Enterprise WiFi
- * This version connects to networks that require a username and password
- * (common in universities and corporate environments).
- *
- * UPDATED: Removed anonymous identity for simpler network configurations.
- * Controls the onboard RGB LED (NeoPixel) on GPIO 38.
- * Requires the "Adafruit NeoPixel" library to be installed.
- */
-
 #include <WiFi.h>
 #include <WebServer.h>
 #include "esp_eap_client.h"
 #include <Adafruit_NeoPixel.h> // Library for the RGB LED
 
-// --- WiFi Credentials for WPA2-Enterprise ---
+// WiFi Credentials for WPA2-Enterprise
 const char* ssid = "PAL3.0"; 
-const char* eap_username = "yu1206"; 
+const char* eap_username = "yu1206"; // AND THIS
 const char* eap_password = "PASSWORD_HERE"; // CHANGE THIS HERE
 
-// --- Web Server Setup ---
+// Web Server Setup
 WebServer server(80);
 
-// --- Onboard RGB LED (NeoPixel) Setup ---
+// Onboard RGB LED (NeoPixel) Setup - OUR BOARD DOESN'T HAVE THIS - MY TESTING BOARD DOES
 #define RGB_LED_PIN 38
 Adafruit_NeoPixel pixels(1, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
 bool ledState = false;
 
-// --- WiFi Event Handler for Debugging (Unchanged) ---
+// WiFi Event Handler for Debugging
 void WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info){
   Serial.println();
   Serial.printf("[WiFi Event] event: %d\n", event);
@@ -46,7 +36,7 @@ void WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info){
   }
 }
 
-// --- Web Server Handler Functions (Unchanged) ---
+// Web Server Handler Functions 
 void handleRoot() {
   server.send(200, "text/plain", "Hello from your ESP32-S3!");
 }
@@ -72,7 +62,6 @@ void handleNotFound(){
   server.send(404, "text/plain", "404: Not found");
 }
 
-// --- Main Setup and Loop ---
 void setup() {
   Serial.begin(115200);
   while (!Serial) { delay(10); }
