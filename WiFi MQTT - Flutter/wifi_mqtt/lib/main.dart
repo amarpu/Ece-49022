@@ -3,18 +3,14 @@ import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 import 'dart:math'; // Import the math library for random numbers
 
-// --- Configuration for Adafruit IO MQTT Broker ---
-// IMPORTANT: These must match the details from your Adafruit IO account
+// Configuration for Adafruit IO MQTT Broker
 const String aioServer = 'io.adafruit.com';
 const String aioUsername = 'XiaohanYu1'; // Your Adafruit IO Username
 
 // CHANGE THSI TOO
-const String aioKey = '_aio_NTnz10gHo8ptPPrgOyJGFKTpS3dd'; // I don't think publishing Adafruit IO Key is a security risk
+const String aioKey = ''; // CHANGE THIS TOO THE KEY FILE IN GITHUB
 
 const int aioPort = 1883;
-
-// The MQTT topic path for your feed.
-// It's always in the format: "username/feeds/feed_name"
 const String ledControlFeed = '$aioUsername/feeds/led-control';
 
 void main() {
@@ -58,10 +54,8 @@ class _MqttControllerPageState extends State<MqttControllerPage> {
     _connect();
   }
 
-  // --- MQTT Connection Logic ---
+  // MQTT Connection Logic
   void _connect() async {
-    // A unique client ID for this connection
-    // [FIXED] Create a shorter, random client ID that Adafruit IO will accept.
     final clientID = 'flutter-client-${Random().nextInt(100000)}';
     _client = MqttServerClient.withPort(aioServer, clientID, aioPort);
     _client.logging(on: false); // Disable logging for cleaner output
@@ -110,14 +104,13 @@ class _MqttControllerPageState extends State<MqttControllerPage> {
     print('MQTT Client Disconnected');
   }
 
-  // --- MQTT Publish Logic ---
+  // MQTT Publish Logic
   void _publishMessage(String message) {
     if (_client.connectionStatus!.state == MqttConnectionState.connected) {
       final builder = MqttClientPayloadBuilder();
       builder.addString(message);
       _client.publishMessage(ledControlFeed, MqttQos.atLeastOnce, builder.payload!);
       
-      // Optimistically update the UI
       setState(() {
         _ledStatus = message;
       });
@@ -128,7 +121,7 @@ class _MqttControllerPageState extends State<MqttControllerPage> {
     }
   }
   
-  // --- UI Build Method ---
+  // UI Build Method
   @override
   Widget build(BuildContext context) {
     return Scaffold(
