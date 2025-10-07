@@ -9,7 +9,7 @@ import 'package:aquarium_controller_app/models/fish_parameter.dart';
 // --- Configuration for Adafruit IO MQTT Broker ---
 const String aioServer = 'io.adafruit.com';
 const String aioUsername = 'XiaohanYu1'; // Your Adafruit IO Username
-const String aioKey = 'xxxxxxxxxxxx'; // Your Adafruit IO Key
+const String aioKey = 'xxxxxxxxxxxxxxx'; // Your Adafruit IO Key
 const int aioPort = 1883;
 
 // --- Adafruit IO Feed Names ---
@@ -116,11 +116,11 @@ class MqttService with ChangeNotifier {
       if (decodedPayload is List) {
         // Handle an array of fish data objects
         for (var fishJson in decodedPayload) {
-          _updateOrAddFish(fishJson);
+          _upsertFishFromDevice(fishJson);
         }
       } else if (decodedPayload is Map<String, dynamic>) {
         // Handle a single fish data object
-        _updateOrAddFish(decodedPayload);
+        _upsertFishFromDevice(decodedPayload);
       }
 
       notifyListeners(); // Notify the UI that data has changed.
@@ -129,11 +129,42 @@ class MqttService with ChangeNotifier {
     }
   }
 
-  void _updateOrAddFish(Map<String, dynamic> fishJson) {
-      String fishId = fishJson['id'];
-      _aquariumData[fishId] = FishData.fromJson(fishId, fishJson);
+  void _upsertFishFromDevice(Map<String, dynamic> fishJson) {
+    final String fishId = fishJson['id'];
+    final double tempActual = (fishJson['temp'] as num? ?? 0).toDouble();
+    final double phActual = (fishJson['ph'] as num? ?? 0).toDouble();
+    final double waterActual = (fishJson['water'] as num? ?? 0).toDouble();
+    final bool waterOn = fishJson['water_on'] as bool? ?? false;
+
+    if (_aquariumData.containsKey(fishId)) {
+      final fish = _aquariumData[fishId]!;
+      fish.temperature.actualValue = tempActual;
+      fish.ph.actualValue = phActual;
+      fish.waterLevel.actualValue = waterActual;
+      fish.waterLevel.isOn = waterOn;
+
+      // Recompute statuses based on 2% rule comparing displayed value vs actual value
+      fish.temperature.status = _statusByTolerance(fish.temperature.value, fish.temperature.actualValue);
+      fish.ph.status = _statusByTolerance(fish.ph.value, fish.ph.actualValue);
+      fish.waterLevel.status = _statusByTolerance(fish.waterLevel.value, fish.waterLevel.actualValue);
+    } else {
+      // New fish entry: create with displayed values equal to actuals
+      _aquariumData[fishId] = FishData(
+        id: fishId,
+        temperature: FishParameter(value: tempActual, actualValue: tempActual),
+        ph: FishParameter(value: phActual, actualValue: phActual),
+        waterLevel: FishParameter(value: waterActual, actualValue: waterActual, isOn: waterOn),
+      );
+    }
   }
 
+  ParameterStatus _statusByTolerance(double displayed, double actual) {
+    if (displayed == 0) {
+      return ParameterStatus.adjusting;
+    }
+    final double diff = (displayed - actual).abs() / displayed;
+    return diff > 0.02 ? ParameterStatus.adjusting : ParameterStatus.good;
+  }
 
   // --- Publishing Commands ---
   void publishCommand(Map<String, dynamic> commandPayload) {
@@ -148,31 +179,81 @@ class MqttService with ChangeNotifier {
     }
   }
 
-  // --- For UI Development & Testing ---
-  void _loadInitialDummyData() {
-    _aquariumData['Fish 1'] = FishData(
-      id: 'Fish 1',
-      temperature: FishParameter(value: 27.12, status: ParameterStatus.good),
-      ph: FishParameter(value: 7.57, status: ParameterStatus.good),
-      waterLevel: FishParameter(value: 94.09, status: ParameterStatus.good, isOn: true),
+  // Helpers to update displayed values from UI
+  void setDisplayedTemp(String fishId, double newValue) {
+    final fish = _aquariumData[fishId];
+    if (fish == null) return;
+    fish.temperature.value = newValue;
+    fish.temperature.status = _statusByTolerance(newValue, fish.temperature.actualValue);
+    notifyListeners();
+  }
+
+  void setDisplayedPh(String fishId, double newValue) {
+    final fish = _aquariumData[fishId];
+    if (fish == null) return;
+    fish.ph.value = newValue;
+    fish.ph.status = _statusByTolerance(newValue, fish.ph.actualValue);
+    notifyListeners();
+  }
+
+  void setDisplayedWater(String fishId, double newValue) {
+    final fish = _aquariumData[fishId];
+    if (fish == null) return;
+    fish.waterLevel.value = newValue;
+    fish.waterLevel.status = _statusByTolerance(newValue, fish.waterLevel.actualValue);
+    notifyListeners();
+  }
+
+  // Sync displayed values to match actuals
+  void syncDisplayedToActual(String fishId) {
+    final fish = _aquariumData[fishId];
+    if (fish == null) return;
+    fish.temperature.value = fish.temperature.actualValue;
+    fish.ph.value = fish.ph.actualValue;
+    fish.waterLevel.value = fish.waterLevel.actualValue;
+    fish.temperature.status = _statusByTolerance(fish.temperature.value, fish.temperature.actualValue);
+    fish.ph.status = _statusByTolerance(fish.ph.value, fish.ph.actualValue);
+    fish.waterLevel.status = _statusByTolerance(fish.waterLevel.value, fish.waterLevel.actualValue);
+    notifyListeners();
+  }
+
+// --- For UI Development & Testing ---
+void _loadInitialDummyData() {
+    _aquariumData['Neon Tetra'] = FishData(
+      id: 'Neon Tetra',
+      temperature: FishParameter(value: 23.5, actualValue: 23.5, status: ParameterStatus.good),
+      ph: FishParameter(value: 6.5, actualValue: 6.5, status: ParameterStatus.good),
+      waterLevel: FishParameter(value: 85.00, actualValue: 85.02, status: ParameterStatus.good, isOn: false),
     );
-    _aquariumData['Fish 2'] = FishData(
-      id: 'Fish 2',
-      temperature: FishParameter(value: 23.72, status: ParameterStatus.good),
-      ph: FishParameter(value: 7.34, status: ParameterStatus.good),
-      waterLevel: FishParameter(value: 88.24, status: ParameterStatus.good, isOn: false),
+    _aquariumData['Betta'] = FishData(
+      id: 'Betta',
+      temperature: FishParameter(value: 26.0, actualValue: 26.0, status: ParameterStatus.good),
+      ph: FishParameter(value: 7.0, actualValue: 7.0, status: ParameterStatus.good),
+      waterLevel: FishParameter(value: 88.24, actualValue: 88.24, status: ParameterStatus.good, isOn: false),
     );
-    _aquariumData['Fish 3'] = FishData(
-      id: 'Fish 3',
-      temperature: FishParameter(value: 25.50, status: ParameterStatus.good),
-      ph: FishParameter(value: 6.67, status: ParameterStatus.good),
-      waterLevel: FishParameter(value: 91.90, status: ParameterStatus.good, isOn: true),
+    _aquariumData['Guppy'] = FishData(
+      id: 'Guppy',
+      temperature: FishParameter(value: 25.0, actualValue: 25.0, status: ParameterStatus.good),
+      ph: FishParameter(value: 7.2, actualValue: 7.2, status: ParameterStatus.good),
+      waterLevel: FishParameter(value: 91.90, actualValue: 91.90, status: ParameterStatus.good, isOn: false),
     );
-    _aquariumData['Fish 4'] = FishData(
-      id: 'Fish 4',
-      temperature: FishParameter(value: 25.50, status: ParameterStatus.good),
-      ph: FishParameter(value: 6.67, status: ParameterStatus.good),
-      waterLevel: FishParameter(value: 91.90, status: ParameterStatus.good, isOn: true),
+    _aquariumData['Goldfish'] = FishData(
+      id: 'Goldfish',
+      temperature: FishParameter(value: 22.0, actualValue: 22.0, status: ParameterStatus.good),
+      ph: FishParameter(value: 7.5, actualValue: 7.5, status: ParameterStatus.good),
+      waterLevel: FishParameter(value: 96.40, actualValue: 96.40, status: ParameterStatus.good, isOn: false),
+    );
+    _aquariumData['Molly'] = FishData(
+      id: 'Molly',
+      temperature: FishParameter(value: 25.5, actualValue: 25.5, status: ParameterStatus.good),
+      ph: FishParameter(value: 8.0, actualValue: 8.0, status: ParameterStatus.good),
+      waterLevel: FishParameter(value: 98.23, actualValue: 98.23, status: ParameterStatus.good, isOn: false),
+    );
+    _aquariumData['Platy'] = FishData(
+      id: 'Platy',
+      temperature: FishParameter(value: 24.0, actualValue: 24.0, status: ParameterStatus.good),
+      ph: FishParameter(value: 7.8, actualValue: 7.8, status: ParameterStatus.good),
+      waterLevel: FishParameter(value: 94.26, actualValue: 94.26, status: ParameterStatus.good, isOn: false),
     );
     notifyListeners();
   }

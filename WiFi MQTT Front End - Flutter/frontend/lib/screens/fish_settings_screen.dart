@@ -34,36 +34,26 @@ class FishSettingsScreen extends StatelessWidget {
                 children: [
                   _buildParameterControl(
                     context,
+                    mqttService,
                     Icons.thermostat,
                     'Temp',
                     fish.temperature,
-                    (newValue) {
-                      // Publish a command to set the temperature.
-                      mqttService.publishCommand({
-                        'fish_id': fishId,
-                        'command': 'set_temp',
-                        'value': newValue,
-                      });
-                    },
+                    // Temperature: only a plus button
+                    onIncrease: () => mqttService.setDisplayedTemp(fishId, fish.temperature.value + 0.1),
                     isDecimal: true,
-                    increment: 0.1,
+                    incrementLabel: '±0.1',
                     unit: '°C',
                   ),
                   _buildParameterControl(
                     context,
+                    mqttService,
                     Icons.opacity,
                     'pH',
                     fish.ph,
-                    (newValue) {
-                      // Publish a command to set the pH.
-                      mqttService.publishCommand({
-                        'fish_id': fishId,
-                        'command': 'set_ph',
-                        'value': newValue,
-                      });
-                    },
+                    onDecrease: () => mqttService.setDisplayedPh(fishId, fish.ph.value - 0.01),
+                    onIncrease: () => mqttService.setDisplayedPh(fishId, fish.ph.value + 0.01),
                     isDecimal: true,
-                    increment: 0.01,
+                    incrementLabel: '±0.01',
                     unit: '',
                   ),
                   _buildWaterPumpControl(
@@ -87,8 +77,6 @@ class FishSettingsScreen extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        // The 'Enter' button can simply navigate back.
-                        // Commands are sent instantly when +/- or On/Off are pressed.
                         Navigator.of(context).pop();
                       },
                       child: const Text('Back to Dashboard'),
@@ -105,12 +93,14 @@ class FishSettingsScreen extends StatelessWidget {
 
   Widget _buildParameterControl(
       BuildContext context,
+      MqttService mqttService,
       IconData icon,
       String label,
-      FishParameter parameter,
-      Function(double) onValueChange, {
+      FishParameter parameter, {
+        VoidCallback? onDecrease,
+        VoidCallback? onIncrease,
         bool isDecimal = false,
-        double increment = 1.0,
+        String incrementLabel = '',
         String unit = '',
       }) {
     return Card(
@@ -133,35 +123,51 @@ class FishSettingsScreen extends StatelessWidget {
                 StatusIndicator(status: parameter.status, size: 14),
               ],
             ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Actual: ', style: TextStyle(color: Colors.white70)),
+                Text(
+                  isDecimal ? parameter.actualValue.toStringAsFixed(2) : parameter.actualValue.round().toString(),
+                  style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+                ),
+                if (unit.isNotEmpty) Text(' $unit', style: const TextStyle(color: Colors.white38)),
+                const SizedBox(width: 16),
+                Text(incrementLabel, style: const TextStyle(color: Colors.white30)),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => mqttService.syncDisplayedToActual((context.findAncestorWidgetOfExactType<FishSettingsScreen>() as FishSettingsScreen).fishId),
+                  icon: const Icon(Icons.sync, size: 16, color: Colors.white70),
+                  label: const Text('Sync to Actual', style: TextStyle(color: Colors.white70)),
+                )
+              ],
+            ),
             const SizedBox(height: 15),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                SizedBox(
-                  width: 60,
-                  height: 44,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      double newValue = (parameter.value - increment);
-                      onValueChange(newValue);
-                    },
-                    style: ElevatedButton.styleFrom(padding: EdgeInsets.zero),
-                    child: const Text('-', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                if (onDecrease != null)
+                  SizedBox(
+                    width: 60,
+                    height: 44,
+                    child: ElevatedButton(
+                      onPressed: onDecrease,
+                      style: ElevatedButton.styleFrom(padding: EdgeInsets.zero),
+                      child: const Text('-', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 30),
-                SizedBox(
-                  width: 60,
-                  height: 44,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      double newValue = (parameter.value + increment);
-                      onValueChange(newValue);
-                    },
-                    style: ElevatedButton.styleFrom(padding: EdgeInsets.zero),
-                    child: const Text('+', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                if (onDecrease != null) const SizedBox(width: 30),
+                if (onIncrease != null)
+                  SizedBox(
+                    width: 60,
+                    height: 44,
+                    child: ElevatedButton(
+                      onPressed: onIncrease,
+                      style: ElevatedButton.styleFrom(padding: EdgeInsets.zero),
+                      child: const Text('+', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                    ),
                   ),
-                ),
               ],
             ),
           ],
@@ -196,7 +202,24 @@ class FishSettingsScreen extends StatelessWidget {
                 StatusIndicator(status: parameter.status, size: 14),
               ],
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Actual: ', style: TextStyle(color: Colors.white70)),
+                Text(
+                  '${parameter.actualValue.toStringAsFixed(2)}%',
+                  style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => Provider.of<MqttService>(context, listen: false).syncDisplayedToActual((context.findAncestorWidgetOfExactType<FishSettingsScreen>() as FishSettingsScreen).fishId),
+                  icon: const Icon(Icons.sync, size: 16, color: Colors.white70),
+                  label: const Text('Sync to Actual', style: TextStyle(color: Colors.white70)),
+                )
+              ],
+            ),
+            const SizedBox(height: 12),
             SizedBox(
               width: 150,
               height: 44,
@@ -218,9 +241,9 @@ class FishSettingsScreen extends StatelessWidget {
   Widget _buildLegend() {
     return Column(
       children: [
-        _legendRow(ParameterStatus.good, 'Levels are good'),
+        _legendRow(ParameterStatus.good, 'Displayed matches actual (within 2%)'),
         const SizedBox(height: 4),
-        _legendRow(ParameterStatus.adjusting, 'Levels are adjusting'),
+        _legendRow(ParameterStatus.adjusting, 'Displayed differs > 2% from actual'),
         const SizedBox(height: 4),
         _legendRow(ParameterStatus.highLow, 'Levels are too high/low'),
       ],
@@ -228,7 +251,7 @@ class FishSettingsScreen extends StatelessWidget {
   }
 
   Widget _legendRow(ParameterStatus status, String text) {
-     return Row(
+    return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         StatusIndicator(status: status),

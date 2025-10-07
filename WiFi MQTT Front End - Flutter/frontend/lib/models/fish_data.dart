@@ -15,18 +15,25 @@ class FishData {
 
   // Factory constructor to create FishData from a JSON map (e.g., from an MQTT message).
   factory FishData.fromJson(String id, Map<String, dynamic> json) {
+    final double tempValue = (json['temp'] as num? ?? 0).toDouble();
+    final double phValue = (json['ph'] as num? ?? 0).toDouble();
+    final double waterValue = (json['water'] as num? ?? 0).toDouble();
+
     return FishData(
       id: id,
       temperature: FishParameter(
-        value: (json['temp'] as num? ?? 0).toDouble(),
+        value: tempValue,
+        actualValue: tempValue,
         status: _getStatus(json['temp_status'] as String? ?? 'good'),
       ),
       ph: FishParameter(
-        value: (json['ph'] as num? ?? 0).toDouble(),
+        value: phValue,
+        actualValue: phValue,
         status: _getStatus(json['ph_status'] as String? ?? 'good'),
       ),
       waterLevel: FishParameter(
-        value: (json['water'] as num? ?? 0).toDouble(),
+        value: waterValue,
+        actualValue: waterValue,
         status: _getStatus(json['water_status'] as String? ?? 'good'),
         isOn: json['water_on'] as bool? ?? false, // Control for water pump/filter
       ),

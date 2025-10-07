@@ -31,31 +31,48 @@ class AquariumDashboardScreen extends StatelessWidget {
                     ? const Center(
                         child: Text(
                           'No fish data received yet.\nWaiting for ESP32...',
-                          style:
-                              TextStyle(color: Colors.white70, fontSize: 16),
+                          style: TextStyle(color: Colors.white70, fontSize: 16),
                           textAlign: TextAlign.center,
                         ),
                       )
-                    // FIX: Adjusted padding to give a good centered look
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 60.0),
-                        child: GridView.builder(
-                          padding: const EdgeInsets.only(top: 12.0),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 1.0,
-                            mainAxisSpacing: 1.0,
-                            // FIX: Increased aspect ratio significantly. This makes the cards
-                            // much wider than they are tall, effectively shrinking their height.
-                            childAspectRatio: 2.0,
-                          ),
-                          itemCount: fishList.length,
-                          itemBuilder: (context, index) {
-                            final fish = fishList[index];
-                            return _buildFishCard(context, fish);
-                          },
-                        ),
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Constrain content to a pleasant max width and center
+                          final double maxContentWidth = 1000;
+                          final double contentWidth = constraints.maxWidth > maxContentWidth
+                              ? maxContentWidth
+                              : constraints.maxWidth;
+
+                          // Cap at 3 columns on wide screens
+                          int crossAxisCount = 1;
+                          if (contentWidth >= 740) {
+                            crossAxisCount = 3;
+                          } else if (contentWidth >= 520) {
+                            crossAxisCount = 2;
+                          }
+
+                          return Align(
+                            alignment: Alignment.topCenter,
+                            child: SizedBox(
+                              width: contentWidth,
+                              child: GridView.builder(
+                                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossAxisCount,
+                                  crossAxisSpacing: 16.0,
+                                  mainAxisSpacing: 16.0,
+                                  // Make cards square
+                                  childAspectRatio: 1.0,
+                                ),
+                                itemCount: fishList.length,
+                                itemBuilder: (context, index) {
+                                  final fish = fishList[index];
+                                  return _buildFishCard(context, fish);
+                                },
+                              ),
+                            ),
+                          );
+                        },
                       ),
               ),
               Padding(
@@ -82,10 +99,10 @@ class AquariumDashboardScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Text('Water Quality: ',
-              style: TextStyle(color: Colors.white, fontSize: 20)),
-          _buildQualityItem('Ammonium', ParameterStatus.highLow),
+              style: TextStyle(color: Colors.white, fontSize: 22)),
+          _buildQualityItem('Ammonium', ParameterStatus.good),
           const SizedBox(width: 15),
-          _buildQualityItem('Nitrate', ParameterStatus.adjusting),
+          _buildQualityItem('Nitrate', ParameterStatus.good),
           const SizedBox(width: 15),
           _buildQualityItem('Nitrite', ParameterStatus.good),
         ],
@@ -96,9 +113,9 @@ class AquariumDashboardScreen extends StatelessWidget {
   Widget _buildQualityItem(String label, ParameterStatus status) {
     return Row(
       children: [
-        StatusIndicator(status: status, size: 14),
+        StatusIndicator(status: status, size: 16),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(color: Colors.white70)),
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 14)),
       ],
     );
   }
@@ -113,11 +130,12 @@ class AquariumDashboardScreen extends StatelessWidget {
         );
       },
       child: Card(
-        color: Colors.blue.shade700,
-        elevation: 4,
+        color: Colors.blue.shade600, // lighter than previous shade
+        elevation: 6, // subtle shadow
+        shadowColor: Colors.black.withOpacity(0.25),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(10.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -125,12 +143,12 @@ class AquariumDashboardScreen extends StatelessWidget {
               Text(
                 fish.id,
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
-              const Divider(color: Colors.white54, height: 8),
+              const Divider(color: Colors.white54, height: 10),
               _buildParameterRow(
                   Icons.thermostat,
                   'Temp',
@@ -153,21 +171,21 @@ class AquariumDashboardScreen extends StatelessWidget {
   Widget _buildParameterRow(
       IconData icon, String label, String value, ParameterStatus status) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1.0),
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: Colors.white70),
-          const SizedBox(width: 5),
+          Icon(icon, size: 16, color: Colors.white70),
+          const SizedBox(width: 6),
           Text('$label: ',
-              style: const TextStyle(color: Colors.white70, fontSize: 10)),
+              style: const TextStyle(color: Colors.white70, fontSize: 12)),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(color: Colors.white, fontSize: 10),
+              style: const TextStyle(color: Colors.white, fontSize: 12),
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          StatusIndicator(status: status, size: 8),
+          StatusIndicator(status: status, size: 10),
         ],
       ),
     );
