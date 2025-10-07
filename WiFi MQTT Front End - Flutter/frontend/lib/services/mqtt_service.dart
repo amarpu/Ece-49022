@@ -9,7 +9,7 @@ import 'package:aquarium_controller_app/models/fish_parameter.dart';
 // --- Configuration for Adafruit IO MQTT Broker ---
 const String aioServer = 'io.adafruit.com';
 const String aioUsername = 'XiaohanYu1'; // Your Adafruit IO Username
-const String aioKey = 'XWXt15dAr9qltpQ2kKaBtrBtW9Ff'; // Your Adafruit IO Key
+const String aioKey = 'xxxxxxxxxxxx'; // Your Adafruit IO Key
 const int aioPort = 1883;
 
 // --- Adafruit IO Feed Names ---
