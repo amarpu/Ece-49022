@@ -4,11 +4,11 @@ As a part of the Fintastic 4+1 project, this repository focuses on the App Desig
 
 We want to control an ESP32 microcontroller using a Flutter mobile application, and we have the complete code for three different communication methods:
 
-Bluetooth Low Energy (BLE): The flutter app communicates with the ESP32 via a Bluetooth connection.
+* Bluetooth Low Energy (BLE): The flutter app communicates with the ESP32 via a Bluetooth connection.
 
-Local Area Network (LAN): The Flutter app communicates directly with the ESP32 over a local WiFi network. This is ideal for situations where both the phone and the device are on the same network.
+* Local Area Network (LAN): The Flutter app communicates directly with the ESP32 over a local WiFi network. This is ideal for situations where both the phone and the device are on the same network.
 
-Wide Area Network (WAN) via MQTT: The Flutter app and the ESP32 communicate through a central MQTT broker (like Adafruit IO). This allows the app to control the ESP32 from anywhere in the world with an internet connection.
+* Wide Area Network (WAN) via MQTT: The Flutter app and the ESP32 communicate through a central MQTT broker (like Adafruit IO). This allows the app to control the ESP32 from anywhere in the world with an internet connection.
 
 **Project Structure & Key Files**
 
