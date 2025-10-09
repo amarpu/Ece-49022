@@ -28,7 +28,7 @@ class FishSettingsScreen extends StatelessWidget {
 
           return SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -62,17 +62,13 @@ class FishSettingsScreen extends StatelessWidget {
                     'Water',
                     fish.waterLevel,
                     (isOn) {
-                      // Publish a command to toggle the water pump/filter.
-                      mqttService.publishCommand({
-                        'fish_id': fishId,
-                        'command': 'toggle_pump',
-                        'value': isOn,
-                      });
+                      // Publish a command to control the water pump using the new feed structure.
+                      mqttService.publishPumpControl(fishId, isOn ? 1 : 0);
                     },
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 20),
                   _buildLegend(),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -104,46 +100,52 @@ class FishSettingsScreen extends StatelessWidget {
         String unit = '',
       }) {
     return Card(
+      color: Colors.blue.shade600,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
+        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Column(
               children: [
-                Icon(icon, color: Colors.white, size: 24),
-                const SizedBox(width: 10),
-                Text('$label: ', style: const TextStyle(fontSize: 18, color: Colors.white)),
-                Text(
-                  isDecimal ? parameter.value.toStringAsFixed(2) : parameter.value.round().toString(),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, color: Colors.white, size: 24),
+                    const SizedBox(width: 10),
+                    Text('$label: ', style: const TextStyle(fontSize: 18, color: Colors.white)),
+                    Text(
+                      isDecimal ? parameter.value.toStringAsFixed(2) : parameter.value.round().toString(),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    Text(' $unit', style: const TextStyle(fontSize: 18, color: Colors.white70)),
+                    const Spacer(),
+                    StatusIndicator(status: parameter.status, size: 14),
+                  ],
                 ),
-                Text(' $unit', style: const TextStyle(fontSize: 18, color: Colors.white70)),
-                const Spacer(),
-                StatusIndicator(status: parameter.status, size: 14),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Actual: ', style: TextStyle(color: Colors.white70)),
+                    Text(
+                      isDecimal ? parameter.actualValue.toStringAsFixed(2) : parameter.actualValue.round().toString(),
+                      style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+                    ),
+                    if (unit.isNotEmpty) Text(' $unit', style: const TextStyle(color: Colors.white38)),
+                    const SizedBox(width: 16),
+                    Text(incrementLabel, style: const TextStyle(color: Colors.white30)),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: () => mqttService.syncDisplayedToActual((context.findAncestorWidgetOfExactType<FishSettingsScreen>() as FishSettingsScreen).fishId),
+                      icon: const Icon(Icons.sync, size: 16, color: Colors.white70),
+                      label: const Text('Sync to Actual', style: TextStyle(color: Colors.white70)),
+                    )
+                  ],
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Actual: ', style: TextStyle(color: Colors.white70)),
-                Text(
-                  isDecimal ? parameter.actualValue.toStringAsFixed(2) : parameter.actualValue.round().toString(),
-                  style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
-                ),
-                if (unit.isNotEmpty) Text(' $unit', style: const TextStyle(color: Colors.white38)),
-                const SizedBox(width: 16),
-                Text(incrementLabel, style: const TextStyle(color: Colors.white30)),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: () => mqttService.syncDisplayedToActual((context.findAncestorWidgetOfExactType<FishSettingsScreen>() as FishSettingsScreen).fishId),
-                  icon: const Icon(Icons.sync, size: 16, color: Colors.white70),
-                  label: const Text('Sync to Actual', style: TextStyle(color: Colors.white70)),
-                )
-              ],
-            ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -184,53 +186,47 @@ class FishSettingsScreen extends StatelessWidget {
       Function(bool) onToggle,
       ) {
     return Card(
+      color: Colors.blue.shade600,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
+        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(icon, color: Colors.white, size: 24),
                 const SizedBox(width: 10),
-                Text('$label Level: ', style: const TextStyle(fontSize: 18, color: Colors.white)),
+                Text('$label Pump: ', style: const TextStyle(fontSize: 18, color: Colors.white)),
                 Text(
-                  '${parameter.value.toStringAsFixed(2)}%',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                  parameter.isOn ? 'ON' : 'OFF',
+                  style: TextStyle(
+                    fontSize: 18, 
+                    fontWeight: FontWeight.bold, 
+                    color: parameter.isOn ? Colors.green.shade300 : Colors.red.shade300
+                  ),
                 ),
                 const Spacer(),
                 StatusIndicator(status: parameter.status, size: 14),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text('Actual: ', style: TextStyle(color: Colors.white70)),
-                Text(
-                  '${parameter.actualValue.toStringAsFixed(2)}%',
-                  style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+                SizedBox(
+                  width: 180,
+                  height: 44,
+                  child: ElevatedButton.icon(
+                    icon: Icon(parameter.isOn ? Icons.power_settings_new : Icons.power_off_outlined),
+                    label: Text(parameter.isOn ? 'Pump ON' : 'Pump OFF'),
+                    onPressed: () => onToggle(!parameter.isOn),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: parameter.isOn ? Colors.green.shade600 : Colors.red.shade600,
+                    ),
+                  ),
                 ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: () => Provider.of<MqttService>(context, listen: false).syncDisplayedToActual((context.findAncestorWidgetOfExactType<FishSettingsScreen>() as FishSettingsScreen).fishId),
-                  icon: const Icon(Icons.sync, size: 16, color: Colors.white70),
-                  label: const Text('Sync to Actual', style: TextStyle(color: Colors.white70)),
-                )
               ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: 150,
-              height: 44,
-              child: ElevatedButton.icon(
-                icon: Icon(parameter.isOn ? Icons.power_settings_new : Icons.power_off_outlined),
-                label: Text(parameter.isOn ? 'Pump ON' : 'Pump OFF'),
-                onPressed: () => onToggle(!parameter.isOn),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: parameter.isOn ? Colors.green.shade600 : Colors.red.shade600,
-                ),
-              ),
             ),
           ],
         ),

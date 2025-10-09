@@ -6,14 +6,23 @@ import 'package:mqtt_client/mqtt_server_client.dart';
 import 'package:aquarium_controller_app/models/fish_data.dart';
 import 'package:aquarium_controller_app/models/fish_parameter.dart';
 
-// --- Configuration for Adafruit IO MQTT Broker ---
+// Configuration for Adafruit IO MQTT Broker 
 const String aioServer = 'io.adafruit.com';
 const String aioUsername = 'XiaohanYu1'; // Your Adafruit IO Username
-const String aioKey = 'xxxxxxxxxxxxxxx'; // Your Adafruit IO Key
+const String aioKey = 'xxxxxxxxxxxxxxxxx'; // Your Adafruit IO Key
 const int aioPort = 1883;
 
-// --- Adafruit IO Feed Names ---
-// These are the names of the feeds you create in your Adafruit IO dashboard.
+// Control Feeds (App → ESP32)
+const String heaterControlFeedName = 'HEATER_CTRL';
+const String phControlFeedName = 'PH_CTRL';
+const String pumpControlFeedName = 'PUMP_CTRL';
+
+// Monitoring Feeds (ESP32 → App)
+const String temperatureSensorFeedName = 'TEMP_SENSOR';
+const String phSensorFeedName = 'PH_SENSOR';
+const String systemStatusFeedName = 'SYS_STATUS';
+
+// Legacy feeds (keeping for backward compatibility)
 const String statusFeedName = 'aquarium-status';
 const String commandFeedName = 'aquarium-command';
 
@@ -25,9 +34,18 @@ class MqttService with ChangeNotifier {
   // Store data for all fish using a Map, with the fish ID as the key.
   final Map<String, FishData> _aquariumData = {};
   Map<String, FishData> get aquariumData => _aquariumData;
-
-  // --- MQTT Topics for Adafruit IO ---
-  // The topic path is always in the format: "username/feeds/feed_name"
+  
+  // Control Topics (App → ESP32)
+  final String heaterControlTopic = '$aioUsername/feeds/$heaterControlFeedName';
+  final String phControlTopic = '$aioUsername/feeds/$phControlFeedName';
+  final String pumpControlTopic = '$aioUsername/feeds/$pumpControlFeedName';
+  
+  // Monitoring Topics (ESP32 → App)
+  final String temperatureSensorTopic = '$aioUsername/feeds/$temperatureSensorFeedName';
+  final String phSensorTopic = '$aioUsername/feeds/$phSensorFeedName';
+  final String systemStatusTopic = '$aioUsername/feeds/$systemStatusFeedName';
+  
+  // Legacy topics (keeping for backward compatibility)
   final String statusTopic = '$aioUsername/feeds/$statusFeedName';
   final String commandTopic = '$aioUsername/feeds/$commandFeedName';
 
@@ -70,13 +88,18 @@ class MqttService with ChangeNotifier {
     _client?.disconnect();
   }
 
-  // --- MQTT Callbacks ---
+  // MQTT Callbacks 
   void onConnected() {
     _connectionStatus = 'Connected to Adafruit IO';
     notifyListeners();
     debugPrint('MQTT Client Connected');
 
-    // Subscribe to the status topic to receive updates from the ESP32.
+    // Subscribe to all monitoring topics to receive updates from the ESP32.
+    _client!.subscribe(temperatureSensorTopic, MqttQos.atLeastOnce);
+    _client!.subscribe(phSensorTopic, MqttQos.atLeastOnce);
+    _client!.subscribe(systemStatusTopic, MqttQos.atLeastOnce);
+    
+    // Also subscribe to legacy topic for backward compatibility
     _client!.subscribe(statusTopic, MqttQos.atLeastOnce);
 
     // Set up the listener for incoming messages.
@@ -105,27 +128,104 @@ class MqttService with ChangeNotifier {
 
   // --- Message Processing ---
   void _processMqttMessage(String topic, String payload) {
-    // Ensure the message is from our status topic.
-    if (topic != statusTopic) return;
-
+    debugPrint('Processing message from topic: $topic');
+    
     try {
-      // The ESP32 can send data for one fish at a time or an array of fish.
-      // We will handle both cases.
-      final dynamic decodedPayload = jsonDecode(payload);
-      
-      if (decodedPayload is List) {
-        // Handle an array of fish data objects
-        for (var fishJson in decodedPayload) {
-          _upsertFishFromDevice(fishJson);
-        }
-      } else if (decodedPayload is Map<String, dynamic>) {
-        // Handle a single fish data object
-        _upsertFishFromDevice(decodedPayload);
+      if (topic == temperatureSensorTopic) {
+        _processTemperatureSensorMessage(payload);
+      } else if (topic == phSensorTopic) {
+        _processPhSensorMessage(payload);
+      } else if (topic == systemStatusTopic) {
+        _processSystemStatusMessage(payload);
+      } else if (topic == statusTopic) {
+        // Legacy support for aquarium-status topic
+        _processLegacyStatusMessage(payload);
+      } else {
+        debugPrint('Unknown topic: $topic');
+        return;
       }
-
+      
       notifyListeners(); // Notify the UI that data has changed.
     } catch (e) {
       debugPrint('Error processing MQTT message: $e, payload: $payload');
+    }
+  }
+  
+  // Process temperature sensor data
+  void _processTemperatureSensorMessage(String payload) {
+    try {
+      final dynamic data = jsonDecode(payload);
+      if (data is Map<String, dynamic>) {
+        final String fishId = data['fish_id'] ?? 'Unknown';
+        final double temperature = (data['temperature'] as num? ?? 0).toDouble();
+        // final String timestamp = data['timestamp'] ?? DateTime.now().toIso8601String();
+        
+        debugPrint('Temperature update for $fishId: ${temperature}°C');
+        _updateFishTemperature(fishId, temperature);
+      } else {
+        // Handle simple numeric value
+        final double temperature = (data as num).toDouble();
+        debugPrint('Global temperature update: ${temperature}°C');
+        _updateAllFishTemperature(temperature);
+      }
+    } catch (e) {
+      debugPrint('Error processing temperature sensor message: $e');
+    }
+  }
+  
+  // Process pH sensor data
+  void _processPhSensorMessage(String payload) {
+    try {
+      final dynamic data = jsonDecode(payload);
+      if (data is Map<String, dynamic>) {
+        final String fishId = data['fish_id'] ?? 'Unknown';
+        final double ph = (data['ph'] as num? ?? 0).toDouble();
+        // final String timestamp = data['timestamp'] ?? DateTime.now().toIso8601String();
+        
+        debugPrint('pH update for $fishId: $ph');
+        _updateFishPh(fishId, ph);
+      } else {
+        // Handle simple numeric value
+        final double ph = (data as num).toDouble();
+        debugPrint('Global pH update: $ph');
+        _updateAllFishPh(ph);
+      }
+    } catch (e) {
+      debugPrint('Error processing pH sensor message: $e');
+    }
+  }
+  
+  // Process system status data
+  void _processSystemStatusMessage(String payload) {
+    try {
+      final dynamic data = jsonDecode(payload);
+      if (data is Map<String, dynamic>) {
+        final String fishId = data['fish_id'] ?? 'Unknown';
+        final String status = data['status'] ?? '';
+        final bool pumpOn = data['pump_on'] as bool? ?? false;
+        final String message = data['message'] ?? '';
+        // final String timestamp = data['timestamp'] ?? DateTime.now().toIso8601String();
+        
+        debugPrint('System status for $fishId: $status, Pump: ${pumpOn ? 'ON' : 'OFF'}, Message: $message');
+        _updateFishSystemStatus(fishId, pumpOn, status, message);
+      }
+    } catch (e) {
+      debugPrint('Error processing system status message: $e');
+    }
+  }
+  
+  // Legacy support for aquarium-status topic
+  void _processLegacyStatusMessage(String payload) {
+    final dynamic decodedPayload = jsonDecode(payload);
+    
+    if (decodedPayload is List) {
+      // Handle an array of fish data objects
+      for (var fishJson in decodedPayload) {
+        _upsertFishFromDevice(fishJson);
+      }
+    } else if (decodedPayload is Map<String, dynamic>) {
+      // Handle a single fish data object
+      _upsertFishFromDevice(decodedPayload);
     }
   }
 
@@ -165,8 +265,124 @@ class MqttService with ChangeNotifier {
     final double diff = (displayed - actual).abs() / displayed;
     return diff > 0.02 ? ParameterStatus.adjusting : ParameterStatus.good;
   }
+  
+  // Helper methods for updating individual fish data
+  void _updateFishTemperature(String fishId, double temperature) {
+    if (_aquariumData.containsKey(fishId)) {
+      final fish = _aquariumData[fishId]!;
+      fish.temperature.actualValue = temperature;
+      fish.temperature.status = _statusByTolerance(fish.temperature.value, fish.temperature.actualValue);
+    } else {
+      // Create new fish entry if it doesn't exist
+      _aquariumData[fishId] = FishData(
+        id: fishId,
+        temperature: FishParameter(value: temperature, actualValue: temperature),
+        ph: FishParameter(value: 7.0, actualValue: 7.0),
+        waterLevel: FishParameter(value: 50.0, actualValue: 50.0),
+      );
+    }
+  }
+  
+  void _updateFishPh(String fishId, double ph) {
+    if (_aquariumData.containsKey(fishId)) {
+      final fish = _aquariumData[fishId]!;
+      fish.ph.actualValue = ph;
+      fish.ph.status = _statusByTolerance(fish.ph.value, fish.ph.actualValue);
+    } else {
+      // Create new fish entry if it doesn't exist
+      _aquariumData[fishId] = FishData(
+        id: fishId,
+        temperature: FishParameter(value: 25.0, actualValue: 25.0),
+        ph: FishParameter(value: ph, actualValue: ph),
+        waterLevel: FishParameter(value: 50.0, actualValue: 50.0),
+      );
+    }
+  }
+  
+  void _updateFishSystemStatus(String fishId, bool pumpOn, String status, String message) {
+    if (_aquariumData.containsKey(fishId)) {
+      final fish = _aquariumData[fishId]!;
+      fish.waterLevel.isOn = pumpOn;
+      // You could add more status fields to FishData if needed
+    }
+  }
+  
+  void _updateAllFishTemperature(double temperature) {
+    for (var fish in _aquariumData.values) {
+      fish.temperature.actualValue = temperature;
+      fish.temperature.status = _statusByTolerance(fish.temperature.value, fish.temperature.actualValue);
+    }
+  }
+  
+  void _updateAllFishPh(double ph) {
+    for (var fish in _aquariumData.values) {
+      fish.ph.actualValue = ph;
+      fish.ph.status = _statusByTolerance(fish.ph.value, fish.ph.actualValue);
+    }
+  }
 
   // --- Publishing Commands ---
+  
+  // New specific control methods
+  void publishHeaterControl(String fishId, String command) {
+    if (_client?.connectionStatus?.state == MqttConnectionState.connected) {
+      final Map<String, dynamic> payload = {
+        'fish_id': fishId,
+        'command': command,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+      
+      final builder = MqttClientPayloadBuilder();
+      builder.addString(jsonEncode(payload));
+      _client!.publishMessage(heaterControlTopic, MqttQos.atLeastOnce, builder.payload!);
+      debugPrint('Published heater control to $heaterControlTopic: $payload');
+    } else {
+      debugPrint('Cannot publish, MQTT client not connected.');
+      connect(); // Attempt to reconnect.
+    }
+  }
+  
+  void publishPhControl(String fishId, String command, {int? durationSeconds}) {
+    if (_client?.connectionStatus?.state == MqttConnectionState.connected) {
+      final Map<String, dynamic> payload = {
+        'fish_id': fishId,
+        'command': command,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+      
+      if (durationSeconds != null) {
+        payload['duration_seconds'] = durationSeconds;
+      }
+      
+      final builder = MqttClientPayloadBuilder();
+      builder.addString(jsonEncode(payload));
+      _client!.publishMessage(phControlTopic, MqttQos.atLeastOnce, builder.payload!);
+      debugPrint('Published pH control to $phControlTopic: $payload');
+    } else {
+      debugPrint('Cannot publish, MQTT client not connected.');
+      connect(); // Attempt to reconnect.
+    }
+  }
+  
+  void publishPumpControl(String fishId, int state) {
+    if (_client?.connectionStatus?.state == MqttConnectionState.connected) {
+      final Map<String, dynamic> payload = {
+        'fish_id': fishId,
+        'state': state, // 1 for ON, 0 for OFF
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+      
+      final builder = MqttClientPayloadBuilder();
+      builder.addString(jsonEncode(payload));
+      _client!.publishMessage(pumpControlTopic, MqttQos.atLeastOnce, builder.payload!);
+      debugPrint('Published pump control to $pumpControlTopic: $payload');
+    } else {
+      debugPrint('Cannot publish, MQTT client not connected.');
+      connect(); // Attempt to reconnect.
+    }
+  }
+  
+  // Legacy method (keeping for backward compatibility)
   void publishCommand(Map<String, dynamic> commandPayload) {
     if (_client?.connectionStatus?.state == MqttConnectionState.connected) {
       final builder = MqttClientPayloadBuilder();
