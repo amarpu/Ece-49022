@@ -10,6 +10,7 @@ We want to control an ESP32 microcontroller using a Flutter mobile application, 
 
 * Wide Area Network (WAN) via MQTT: The Flutter app and the ESP32 communicate through a central MQTT broker (like Adafruit IO). This allows the app to control the ESP32 from anywhere in the world with an internet connection.
 
+
 **Project Structure & Key Files**
 
 This repository contains several versions of the project, documenting its evolution from Bluetooth LE to the final MQTT implementation.
@@ -20,11 +21,11 @@ These folders contain the most up-to-date and functional versions of the project
 
 * WiFi MQTT Front End - Flutter/frontend
 
-Purpose: The latest and most polished Flutter application. It features an improved user interface for controlling the ESP32 over the internet (WAN) using MQTT. This is the recommended mobile app to use.
+Purpose: The latest and most polished Flutter application. It features an improved user interface for controlling the ESP32 over the internet (WAN) using MQTT. This is the recommended app to use.
 
-* wifi_mqtt_setup_but_as_functions.ino
+* WiFi MQTT Front End - ESP32/sketch_oct9a
 
-Purpose: The latest and refactored Arduino code for the ESP32. It connects to the MQTT broker and has been organized into functions for better readability and maintenance. This is the recommended code to flash onto the ESP32.
+Purpose: The ESP32 sketch code for the Flutter application. This involves subscribing to the MQTT feeds that the App uses and setting up the WiFi credentials. 
 
 * WiFi MQTT - ESP32/sketch_sep30a
 
