@@ -39,9 +39,12 @@ class FishSettingsScreen extends StatelessWidget {
                     'Temp',
                     fish.temperature,
                     // Temperature: only a plus button
-                    onIncrease: () => mqttService.setDisplayedTemp(fishId, fish.temperature.value + 0.1),
+                    onIncrease: () {
+                      mqttService.setDisplayedTemp(fishId, fish.temperature.value + 0.3);
+                      mqttService.publishHeaterControl(fishId, fish.temperature.value + 0.3);
+                    },
                     isDecimal: true,
-                    incrementLabel: '±0.1',
+                    incrementLabel: '+0.3',
                     unit: '°C',
                   ),
                   _buildParameterControl(
@@ -50,10 +53,16 @@ class FishSettingsScreen extends StatelessWidget {
                     Icons.opacity,
                     'pH',
                     fish.ph,
-                    onDecrease: () => mqttService.setDisplayedPh(fishId, fish.ph.value - 0.01),
-                    onIncrease: () => mqttService.setDisplayedPh(fishId, fish.ph.value + 0.01),
+                    onDecrease: () {
+                      mqttService.setDisplayedPh(fishId, fish.ph.value - 0.1);
+                      mqttService.publishPhControl(fishId, fish.ph.value - 0.1);
+                    },
+                    onIncrease: () {
+                      mqttService.setDisplayedPh(fishId, fish.ph.value + 0.1);
+                      mqttService.publishPhControl(fishId, fish.ph.value + 0.1);
+                    },
                     isDecimal: true,
-                    incrementLabel: '±0.01',
+                    incrementLabel: '±0.1',
                     unit: '',
                   ),
                   _buildWaterPumpControl(
@@ -66,9 +75,9 @@ class FishSettingsScreen extends StatelessWidget {
                       mqttService.publishPumpControl(fishId, isOn ? 1 : 0);
                     },
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 30),
                   _buildLegend(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 30),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -256,4 +265,5 @@ class FishSettingsScreen extends StatelessWidget {
       ],
     );
   }
+
 }

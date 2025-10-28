@@ -6,12 +6,15 @@ class FishParameter {
   double value;
   // Actual value reported from the device via MQTT
   double actualValue;
+  // Default/original value for this parameter
+  double defaultValue;
   ParameterStatus status;
   bool isOn; // For toggle controls like a water pump.
 
   FishParameter({
     required this.value,
     this.actualValue = 0.0,
+    this.defaultValue = 0.0,
     this.status = ParameterStatus.good,
     this.isOn = false,
   });

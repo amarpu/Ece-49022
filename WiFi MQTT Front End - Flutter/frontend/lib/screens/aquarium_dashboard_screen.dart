@@ -93,20 +93,24 @@ class AquariumDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildWaterQualityIndicators() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('Water Quality: ',
-              style: TextStyle(color: Colors.white, fontSize: 22)),
-          _buildQualityItem('Ammonium', ParameterStatus.good),
-          const SizedBox(width: 15),
-          _buildQualityItem('Nitrate', ParameterStatus.good),
-          const SizedBox(width: 15),
-          _buildQualityItem('Nitrite', ParameterStatus.good),
-        ],
-      ),
+    return Consumer<MqttService>(
+      builder: (context, mqttService, child) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('Water Quality: ',
+                  style: TextStyle(color: Colors.white, fontSize: 22)),
+              _buildQualityItem('Ammonium', mqttService.ammoniumStatus ? ParameterStatus.good : ParameterStatus.highLow),
+              const SizedBox(width: 15),
+              _buildQualityItem('Nitrate', mqttService.nitrateStatus ? ParameterStatus.good : ParameterStatus.highLow),
+              const SizedBox(width: 15),
+              _buildQualityItem('Nitrite', mqttService.nitriteStatus ? ParameterStatus.good : ParameterStatus.highLow),
+            ],
+          ),
+        );
+      },
     );
   }
 

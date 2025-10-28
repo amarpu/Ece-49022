@@ -24,15 +24,15 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
           visualDensity: VisualDensity.adaptivePlatformDensity,
-          scaffoldBackgroundColor: const Color(0xFF1976D2), // Background from sketches
+          scaffoldBackgroundColor: const Color(0xFF1976D2), 
           appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF1976D2), // Match background
+            backgroundColor: Color(0xFF1976D2), 
             elevation: 0,
             titleTextStyle: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
             iconTheme: IconThemeData(color: Colors.white),
           ),
           textTheme: const TextTheme(
-            bodyMedium: TextStyle(color: Colors.white), // Default text color
+            bodyMedium: TextStyle(color: Colors.white), 
             titleLarge: TextStyle(color: Colors.white),
             titleMedium: TextStyle(color: Colors.white),
           ),

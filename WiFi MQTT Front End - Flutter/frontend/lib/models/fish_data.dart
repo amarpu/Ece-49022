@@ -40,7 +40,6 @@ class FishData {
     );
   }
 
-  // Helper method to convert a status string to an enum.
   static ParameterStatus _getStatus(String statusStr) {
     switch (statusStr.toLowerCase()) {
       case 'good':

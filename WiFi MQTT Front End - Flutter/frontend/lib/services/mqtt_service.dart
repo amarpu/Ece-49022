@@ -6,23 +6,30 @@ import 'package:mqtt_client/mqtt_server_client.dart';
 import 'package:aquarium_controller_app/models/fish_data.dart';
 import 'package:aquarium_controller_app/models/fish_parameter.dart';
 
-// Configuration for Adafruit IO MQTT Broker 
+// --- Configuration for Adafruit IO MQTT Broker ---
 const String aioServer = 'io.adafruit.com';
 const String aioUsername = 'XiaohanYu1'; // Your Adafruit IO Username
-const String aioKey = 'xxxxxxxxxxxxxxxxx'; // Your Adafruit IO Key
+const String aioKey = 'xxxxxxxxxxxxxxx'; // Your Adafruit IO Key
 const int aioPort = 1883;
 
-// Control Feeds (App → ESP32)
+// --- Adafruit IO Feed Names ---
+// These are the names of the feeds you create in your Adafruit IO dashboard.
+
+// Control Feeds (App > ESP32)
 const String heaterControlFeedName = 'HEATER_CTRL';
 const String phControlFeedName = 'PH_CTRL';
 const String pumpControlFeedName = 'PUMP_CTRL';
 
-// Monitoring Feeds (ESP32 → App)
+// Monitoring Feeds (ESP32 > App)
 const String temperatureSensorFeedName = 'TEMP_SENSOR';
 const String phSensorFeedName = 'PH_SENSOR';
 const String systemStatusFeedName = 'SYS_STATUS';
+const String waterAmmoniumFeedName = 'WATER_AMMONIUM';
+const String waterNitrateFeedName = 'WATER_NITRATE';
+const String waterNitriteFeedName = 'WATER_NITRITE';
 
 // Legacy feeds (keeping for backward compatibility)
+// too lazy to remove LOL
 const String statusFeedName = 'aquarium-status';
 const String commandFeedName = 'aquarium-command';
 
@@ -34,6 +41,18 @@ class MqttService with ChangeNotifier {
   // Store data for all fish using a Map, with the fish ID as the key.
   final Map<String, FishData> _aquariumData = {};
   Map<String, FishData> get aquariumData => _aquariumData;
+
+  // Water quality status (true = good/green, false = bad/red)
+  bool _ammoniumStatus = true;
+  bool _nitrateStatus = true;
+  bool _nitriteStatus = true;
+  
+  bool get ammoniumStatus => _ammoniumStatus;
+  bool get nitrateStatus => _nitrateStatus;
+  bool get nitriteStatus => _nitriteStatus;
+
+  // --- MQTT Topics for Adafruit IO ---
+  // The topic path is always in the format: "username/feeds/feed_name"
   
   // Control Topics (App → ESP32)
   final String heaterControlTopic = '$aioUsername/feeds/$heaterControlFeedName';
@@ -44,6 +63,9 @@ class MqttService with ChangeNotifier {
   final String temperatureSensorTopic = '$aioUsername/feeds/$temperatureSensorFeedName';
   final String phSensorTopic = '$aioUsername/feeds/$phSensorFeedName';
   final String systemStatusTopic = '$aioUsername/feeds/$systemStatusFeedName';
+  final String waterAmmoniumTopic = '$aioUsername/feeds/$waterAmmoniumFeedName';
+  final String waterNitrateTopic = '$aioUsername/feeds/$waterNitrateFeedName';
+  final String waterNitriteTopic = '$aioUsername/feeds/$waterNitriteFeedName';
   
   // Legacy topics (keeping for backward compatibility)
   final String statusTopic = '$aioUsername/feeds/$statusFeedName';
@@ -88,7 +110,7 @@ class MqttService with ChangeNotifier {
     _client?.disconnect();
   }
 
-  // MQTT Callbacks 
+  // --- MQTT Callbacks ---
   void onConnected() {
     _connectionStatus = 'Connected to Adafruit IO';
     notifyListeners();
@@ -98,6 +120,9 @@ class MqttService with ChangeNotifier {
     _client!.subscribe(temperatureSensorTopic, MqttQos.atLeastOnce);
     _client!.subscribe(phSensorTopic, MqttQos.atLeastOnce);
     _client!.subscribe(systemStatusTopic, MqttQos.atLeastOnce);
+    _client!.subscribe(waterAmmoniumTopic, MqttQos.atLeastOnce);
+    _client!.subscribe(waterNitrateTopic, MqttQos.atLeastOnce);
+    _client!.subscribe(waterNitriteTopic, MqttQos.atLeastOnce);
     
     // Also subscribe to legacy topic for backward compatibility
     _client!.subscribe(statusTopic, MqttQos.atLeastOnce);
@@ -137,6 +162,12 @@ class MqttService with ChangeNotifier {
         _processPhSensorMessage(payload);
       } else if (topic == systemStatusTopic) {
         _processSystemStatusMessage(payload);
+      } else if (topic == waterAmmoniumTopic) {
+        _processWaterQualityMessage(payload, 'ammonium');
+      } else if (topic == waterNitrateTopic) {
+        _processWaterQualityMessage(payload, 'nitrate');
+      } else if (topic == waterNitriteTopic) {
+        _processWaterQualityMessage(payload, 'nitrite');
       } else if (topic == statusTopic) {
         // Legacy support for aquarium-status topic
         _processLegacyStatusMessage(payload);
@@ -214,6 +245,49 @@ class MqttService with ChangeNotifier {
     }
   }
   
+  // Process water quality data (ammonium, nitrate, nitrite)
+  void _processWaterQualityMessage(String payload, String type) {
+    try {
+      // Payload can be "true", "false", "1", "0", or JSON
+      bool status = true; // Default to good
+      
+      final String lowerPayload = payload.trim().toLowerCase();
+      if (lowerPayload == 'true' || lowerPayload == '1') {
+        status = true;
+      } else if (lowerPayload == 'false' || lowerPayload == '0') {
+        status = false;
+      } else {
+        // Try parsing as JSON
+        try {
+          final dynamic data = jsonDecode(payload);
+          if (data is bool) {
+            status = data;
+          } else if (data is Map<String, dynamic>) {
+            status = data['status'] as bool? ?? data['value'] as bool? ?? true;
+          }
+        } catch (_) {
+          debugPrint('Could not parse water quality payload as JSON, defaulting to true');
+        }
+      }
+      
+      debugPrint('Water quality update - $type: ${status ? 'GOOD' : 'BAD'}');
+      
+      switch (type) {
+        case 'ammonium':
+          _ammoniumStatus = status;
+          break;
+        case 'nitrate':
+          _nitrateStatus = status;
+          break;
+        case 'nitrite':
+          _nitriteStatus = status;
+          break;
+      }
+    } catch (e) {
+      debugPrint('Error processing water quality message ($type): $e');
+    }
+  }
+  
   // Legacy support for aquarium-status topic
   void _processLegacyStatusMessage(String payload) {
     final dynamic decodedPayload = jsonDecode(payload);
@@ -243,25 +317,41 @@ class MqttService with ChangeNotifier {
       fish.waterLevel.actualValue = waterActual;
       fish.waterLevel.isOn = waterOn;
 
-      // Recompute statuses based on 2% rule comparing displayed value vs actual value
-      fish.temperature.status = _statusByTolerance(fish.temperature.value, fish.temperature.actualValue);
-      fish.ph.status = _statusByTolerance(fish.ph.value, fish.ph.actualValue);
-      fish.waterLevel.status = _statusByTolerance(fish.waterLevel.value, fish.waterLevel.actualValue);
+      // Recompute statuses based on tolerance rules
+      fish.temperature.status = _statusByTolerance(fish.temperature.value, fish.temperature.actualValue, fish.temperature.defaultValue, 'temperature');
+      fish.ph.status = _statusByTolerance(fish.ph.value, fish.ph.actualValue, fish.ph.defaultValue, 'ph');
+      fish.waterLevel.status = _statusByTolerance(fish.waterLevel.value, fish.waterLevel.actualValue, fish.waterLevel.defaultValue, 'water');
     } else {
       // New fish entry: create with displayed values equal to actuals
       _aquariumData[fishId] = FishData(
         id: fishId,
-        temperature: FishParameter(value: tempActual, actualValue: tempActual),
-        ph: FishParameter(value: phActual, actualValue: phActual),
-        waterLevel: FishParameter(value: waterActual, actualValue: waterActual, isOn: waterOn),
+        temperature: FishParameter(value: tempActual, actualValue: tempActual, defaultValue: tempActual),
+        ph: FishParameter(value: phActual, actualValue: phActual, defaultValue: phActual),
+        waterLevel: FishParameter(value: waterActual, actualValue: waterActual, defaultValue: waterActual, isOn: waterOn),
       );
     }
   }
 
-  ParameterStatus _statusByTolerance(double displayed, double actual) {
+  ParameterStatus _statusByTolerance(double displayed, double actual, double defaultValue, String parameterType) {
     if (displayed == 0) {
       return ParameterStatus.adjusting;
     }
+    
+    final String type = parameterType.toLowerCase();
+    if (type == 'temperature' || type == 'ph') {
+      final double displayDiff = (displayed - defaultValue).abs() / defaultValue;
+      if (displayDiff >= 0.05) 
+      {
+        return ParameterStatus.highLow;
+      }
+      final double diff = (actual - displayed).abs() / displayed;
+      if (diff > 0.02) {
+        return ParameterStatus.adjusting;
+      }
+      return ParameterStatus.good;
+    }
+    
+    // For other parameters, use 2% difference
     final double diff = (displayed - actual).abs() / displayed;
     return diff > 0.02 ? ParameterStatus.adjusting : ParameterStatus.good;
   }
@@ -271,14 +361,14 @@ class MqttService with ChangeNotifier {
     if (_aquariumData.containsKey(fishId)) {
       final fish = _aquariumData[fishId]!;
       fish.temperature.actualValue = temperature;
-      fish.temperature.status = _statusByTolerance(fish.temperature.value, fish.temperature.actualValue);
+      fish.temperature.status = _statusByTolerance(fish.temperature.value, fish.temperature.actualValue, fish.temperature.defaultValue, 'temperature');
     } else {
       // Create new fish entry if it doesn't exist
       _aquariumData[fishId] = FishData(
         id: fishId,
-        temperature: FishParameter(value: temperature, actualValue: temperature),
-        ph: FishParameter(value: 7.0, actualValue: 7.0),
-        waterLevel: FishParameter(value: 50.0, actualValue: 50.0),
+        temperature: FishParameter(value: temperature, actualValue: temperature, defaultValue: temperature),
+        ph: FishParameter(value: 7.0, actualValue: 7.0, defaultValue: 7.0),
+        waterLevel: FishParameter(value: 50.0, actualValue: 50.0, defaultValue: 50.0),
       );
     }
   }
@@ -287,14 +377,14 @@ class MqttService with ChangeNotifier {
     if (_aquariumData.containsKey(fishId)) {
       final fish = _aquariumData[fishId]!;
       fish.ph.actualValue = ph;
-      fish.ph.status = _statusByTolerance(fish.ph.value, fish.ph.actualValue);
+      fish.ph.status = _statusByTolerance(fish.ph.value, fish.ph.actualValue, fish.ph.defaultValue, 'ph');
     } else {
       // Create new fish entry if it doesn't exist
       _aquariumData[fishId] = FishData(
         id: fishId,
-        temperature: FishParameter(value: 25.0, actualValue: 25.0),
-        ph: FishParameter(value: ph, actualValue: ph),
-        waterLevel: FishParameter(value: 50.0, actualValue: 50.0),
+        temperature: FishParameter(value: 25.0, actualValue: 25.0, defaultValue: 25.0),
+        ph: FishParameter(value: ph, actualValue: ph, defaultValue: ph),
+        waterLevel: FishParameter(value: 50.0, actualValue: 50.0, defaultValue: 50.0),
       );
     }
   }
@@ -310,25 +400,25 @@ class MqttService with ChangeNotifier {
   void _updateAllFishTemperature(double temperature) {
     for (var fish in _aquariumData.values) {
       fish.temperature.actualValue = temperature;
-      fish.temperature.status = _statusByTolerance(fish.temperature.value, fish.temperature.actualValue);
+      fish.temperature.status = _statusByTolerance(fish.temperature.value, fish.temperature.actualValue, fish.temperature.defaultValue, 'temperature');
     }
   }
   
   void _updateAllFishPh(double ph) {
     for (var fish in _aquariumData.values) {
       fish.ph.actualValue = ph;
-      fish.ph.status = _statusByTolerance(fish.ph.value, fish.ph.actualValue);
+      fish.ph.status = _statusByTolerance(fish.ph.value, fish.ph.actualValue, fish.ph.defaultValue, 'ph');
     }
   }
 
   // --- Publishing Commands ---
   
   // New specific control methods
-  void publishHeaterControl(String fishId, String command) {
+  void publishHeaterControl(String fishId, double targetTemperature) {
     if (_client?.connectionStatus?.state == MqttConnectionState.connected) {
       final Map<String, dynamic> payload = {
         'fish_id': fishId,
-        'command': command,
+        'target_temperature': targetTemperature,
         'timestamp': DateTime.now().toIso8601String(),
       };
       
@@ -342,17 +432,13 @@ class MqttService with ChangeNotifier {
     }
   }
   
-  void publishPhControl(String fishId, String command, {int? durationSeconds}) {
+  void publishPhControl(String fishId, double targetPh) {
     if (_client?.connectionStatus?.state == MqttConnectionState.connected) {
       final Map<String, dynamic> payload = {
         'fish_id': fishId,
-        'command': command,
+        'target_ph': targetPh,
         'timestamp': DateTime.now().toIso8601String(),
       };
-      
-      if (durationSeconds != null) {
-        payload['duration_seconds'] = durationSeconds;
-      }
       
       final builder = MqttClientPayloadBuilder();
       builder.addString(jsonEncode(payload));
@@ -400,7 +486,7 @@ class MqttService with ChangeNotifier {
     final fish = _aquariumData[fishId];
     if (fish == null) return;
     fish.temperature.value = newValue;
-    fish.temperature.status = _statusByTolerance(newValue, fish.temperature.actualValue);
+    fish.temperature.status = _statusByTolerance(newValue, fish.temperature.actualValue, fish.temperature.defaultValue, 'temperature');
     notifyListeners();
   }
 
@@ -408,7 +494,7 @@ class MqttService with ChangeNotifier {
     final fish = _aquariumData[fishId];
     if (fish == null) return;
     fish.ph.value = newValue;
-    fish.ph.status = _statusByTolerance(newValue, fish.ph.actualValue);
+    fish.ph.status = _statusByTolerance(newValue, fish.ph.actualValue, fish.ph.defaultValue, 'ph');
     notifyListeners();
   }
 
@@ -416,7 +502,7 @@ class MqttService with ChangeNotifier {
     final fish = _aquariumData[fishId];
     if (fish == null) return;
     fish.waterLevel.value = newValue;
-    fish.waterLevel.status = _statusByTolerance(newValue, fish.waterLevel.actualValue);
+    fish.waterLevel.status = _statusByTolerance(newValue, fish.waterLevel.actualValue, fish.waterLevel.defaultValue, 'water');
     notifyListeners();
   }
 
@@ -427,9 +513,9 @@ class MqttService with ChangeNotifier {
     fish.temperature.value = fish.temperature.actualValue;
     fish.ph.value = fish.ph.actualValue;
     fish.waterLevel.value = fish.waterLevel.actualValue;
-    fish.temperature.status = _statusByTolerance(fish.temperature.value, fish.temperature.actualValue);
-    fish.ph.status = _statusByTolerance(fish.ph.value, fish.ph.actualValue);
-    fish.waterLevel.status = _statusByTolerance(fish.waterLevel.value, fish.waterLevel.actualValue);
+    fish.temperature.status = _statusByTolerance(fish.temperature.value, fish.temperature.actualValue, fish.temperature.defaultValue, 'temperature');
+    fish.ph.status = _statusByTolerance(fish.ph.value, fish.ph.actualValue, fish.ph.defaultValue, 'ph');
+    fish.waterLevel.status = _statusByTolerance(fish.waterLevel.value, fish.waterLevel.actualValue, fish.waterLevel.defaultValue, 'water');
     notifyListeners();
   }
 
@@ -437,39 +523,39 @@ class MqttService with ChangeNotifier {
 void _loadInitialDummyData() {
     _aquariumData['Neon Tetra'] = FishData(
       id: 'Neon Tetra',
-      temperature: FishParameter(value: 23.5, actualValue: 23.5, status: ParameterStatus.good),
-      ph: FishParameter(value: 6.5, actualValue: 6.5, status: ParameterStatus.good),
-      waterLevel: FishParameter(value: 85.00, actualValue: 85.02, status: ParameterStatus.good, isOn: false),
+      temperature: FishParameter(value: 23.5, actualValue: 23.5, defaultValue: 23.5, status: ParameterStatus.good),
+      ph: FishParameter(value: 6.5, actualValue: 6.5, defaultValue: 6.5, status: ParameterStatus.good),
+      waterLevel: FishParameter(value: 85.00, actualValue: 85.02, defaultValue: 85.00, status: ParameterStatus.good, isOn: false),
     );
     _aquariumData['Betta'] = FishData(
       id: 'Betta',
-      temperature: FishParameter(value: 26.0, actualValue: 26.0, status: ParameterStatus.good),
-      ph: FishParameter(value: 7.0, actualValue: 7.0, status: ParameterStatus.good),
-      waterLevel: FishParameter(value: 88.24, actualValue: 88.24, status: ParameterStatus.good, isOn: false),
+      temperature: FishParameter(value: 26.0, actualValue: 26.0, defaultValue: 26.0, status: ParameterStatus.good),
+      ph: FishParameter(value: 7.0, actualValue: 7.0, defaultValue: 7.0, status: ParameterStatus.good),
+      waterLevel: FishParameter(value: 88.24, actualValue: 88.24, defaultValue: 88.24, status: ParameterStatus.good, isOn: false),
     );
     _aquariumData['Guppy'] = FishData(
       id: 'Guppy',
-      temperature: FishParameter(value: 25.0, actualValue: 25.0, status: ParameterStatus.good),
-      ph: FishParameter(value: 7.2, actualValue: 7.2, status: ParameterStatus.good),
-      waterLevel: FishParameter(value: 91.90, actualValue: 91.90, status: ParameterStatus.good, isOn: false),
+      temperature: FishParameter(value: 25.0, actualValue: 25.0, defaultValue: 25.0, status: ParameterStatus.good),
+      ph: FishParameter(value: 7.2, actualValue: 7.2, defaultValue: 7.2, status: ParameterStatus.good),
+      waterLevel: FishParameter(value: 91.90, actualValue: 91.90, defaultValue: 91.90, status: ParameterStatus.good, isOn: false),
     );
     _aquariumData['Goldfish'] = FishData(
       id: 'Goldfish',
-      temperature: FishParameter(value: 22.0, actualValue: 22.0, status: ParameterStatus.good),
-      ph: FishParameter(value: 7.5, actualValue: 7.5, status: ParameterStatus.good),
-      waterLevel: FishParameter(value: 96.40, actualValue: 96.40, status: ParameterStatus.good, isOn: false),
+      temperature: FishParameter(value: 22.0, actualValue: 22.0, defaultValue: 22.0, status: ParameterStatus.good),
+      ph: FishParameter(value: 7.5, actualValue: 7.5, defaultValue: 7.5, status: ParameterStatus.good),
+      waterLevel: FishParameter(value: 96.40, actualValue: 96.40, defaultValue: 96.40, status: ParameterStatus.good, isOn: false),
     );
     _aquariumData['Molly'] = FishData(
       id: 'Molly',
-      temperature: FishParameter(value: 25.5, actualValue: 25.5, status: ParameterStatus.good),
-      ph: FishParameter(value: 8.0, actualValue: 8.0, status: ParameterStatus.good),
-      waterLevel: FishParameter(value: 98.23, actualValue: 98.23, status: ParameterStatus.good, isOn: false),
+      temperature: FishParameter(value: 25.5, actualValue: 25.5, defaultValue: 25.5, status: ParameterStatus.good),
+      ph: FishParameter(value: 8.0, actualValue: 8.0, defaultValue: 8.0, status: ParameterStatus.good),
+      waterLevel: FishParameter(value: 98.23, actualValue: 98.23, defaultValue: 98.23, status: ParameterStatus.good, isOn: false),
     );
     _aquariumData['Platy'] = FishData(
       id: 'Platy',
-      temperature: FishParameter(value: 24.0, actualValue: 24.0, status: ParameterStatus.good),
-      ph: FishParameter(value: 7.8, actualValue: 7.8, status: ParameterStatus.good),
-      waterLevel: FishParameter(value: 94.26, actualValue: 94.26, status: ParameterStatus.good, isOn: false),
+      temperature: FishParameter(value: 24.0, actualValue: 24.0, defaultValue: 24.0, status: ParameterStatus.good),
+      ph: FishParameter(value: 7.8, actualValue: 7.8, defaultValue: 7.8, status: ParameterStatus.good),
+      waterLevel: FishParameter(value: 94.26, actualValue: 94.26, defaultValue: 94.26, status: ParameterStatus.good, isOn: false),
     );
     notifyListeners();
   }
