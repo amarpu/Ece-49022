@@ -23,9 +23,9 @@ We explored three distinct methods of communication during development:
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
-### 🚀 Current & Working Code (MQTT)
+### Current & Working Code (MQTT)
 *Use these files for the most up-to-date, functional version of the project.*
 
 * `Flutter/frontend`
@@ -34,7 +34,7 @@ We explored three distinct methods of communication during development:
 * `ESP32/sketch_oct9a`
   * **Description:** The primary ESP32 sketch. Handles WiFi credentials and subscribes to the MQTT feeds used by the frontend app.
 
-### ⚠️ Deprecated / Reference Code (MQTT)
+### Deprecated / Reference Code
 *Functional, but superseded by the files above.*
 
 * `ESP32/sketch_sep30a`
@@ -45,7 +45,7 @@ We explored three distinct methods of communication during development:
 
 ---
 
-## 📦 Archive
+## Archive
 *These folders represent earlier development stages (LAN & BLE). They are kept for historical reference and are no longer supported.*
 
 **Local Area Network (LAN) Versions**
