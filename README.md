@@ -1,64 +1,57 @@
-**ESP32 & Flutter IoT Controller**
+# ESP32 & Flutter IoT Controller
 
-As a part of the Fintastic 4+1 project, this repository focuses on the App Design and connectivity side of our goals.
+**Project:** Fintastic 4+1  
+**Focus:** App Design & Connectivity
 
-We want to control an ESP32 microcontroller using a Flutter mobile application, and we have the complete code for three different communication methods:
+This repository houses the source code for controlling an ESP32 microcontroller via a Flutter mobile application. It documents the evolution of our connectivity approach, culminating in a Wide Area Network (WAN) solution.
 
-* Bluetooth Low Energy (BLE): The flutter app communicates with the ESP32 via a Bluetooth connection.
+## Communication Protocols
 
-* Local Area Network (LAN): The Flutter app communicates directly with the ESP32 over a local WiFi network. This is ideal for situations where both the phone and the device are on the same network.
+We explored three distinct methods of communication during development:
 
-* Wide Area Network (WAN) via MQTT: The Flutter app and the ESP32 communicate through a central MQTT broker (like Adafruit IO). This allows the app to control the ESP32 from anywhere in the world with an internet connection.
+1. **Wide Area Network (WAN) via MQTT (Final Implementation)**
+   * **How it works:** The Flutter app and ESP32 communicate through a central MQTT broker (e.g., Adafruit IO).
+   * **Benefit:** Allows control of the ESP32 from anywhere in the world with an internet connection.
 
+2. **Local Area Network (LAN)**
+   * **How it works:** The Flutter app communicates directly with the ESP32 over a local WiFi network.
+   * **Limitation:** Both the phone and device must be on the same network.
 
-**Project Structure & Key Files**
+3. **Bluetooth Low Energy (BLE)**
+   * **How it works:** Direct Bluetooth connection between phone and device.
+   * **Status:** Replaced by WiFi/MQTT for better range and flexibility.
 
-This repository contains several versions of the project, documenting its evolution from Bluetooth LE to the final MQTT implementation.
+---
 
-**Current & Working Code**
+## 📂 Project Structure
 
-These folders contain the most up-to-date and functional versions of the project.
+### 🚀 Current & Working Code (MQTT)
+*Use these files for the most up-to-date, functional version of the project.*
 
-* WiFi MQTT Front End - Flutter/frontend
+* `Flutter/frontend`
+  * **Description:** The latest, polished Flutter application. Features an improved UI for controlling the ESP32 over the internet. **(Recommended)**
 
-Purpose: The latest and most polished Flutter application. It features an improved user interface for controlling the ESP32 over the internet (WAN) using MQTT. This is the recommended app to use.
+* `ESP32/sketch_oct9a`
+  * **Description:** The primary ESP32 sketch. Handles WiFi credentials and subscribes to the MQTT feeds used by the frontend app.
 
-* WiFi MQTT Front End - ESP32/sketch_oct9a
+### ⚠️ Deprecated / Reference Code (MQTT)
+*Functional, but superseded by the files above.*
 
-Purpose: The ESP32 sketch code for the Flutter application. This involves subscribing to the MQTT feeds that the App uses and setting up the WiFi credentials. 
+* `ESP32/sketch_sep30a`
+  * **Description:** Initial working version of the MQTT logic. (See `wifi_mqtt_setup_but_as_functions.ino` for the logic expansion).
 
-* WiFi MQTT - ESP32/sketch_sep30a
+* `Flutter/wifi_mqtt`
+  * **Description:** Initial working version of the MQTT app. Contains core logic but lacks the UI improvements found in `frontend`.
 
-Purpose: The initial working version of the ESP32 code for MQTT communication. It's functional but has been improved upon by wifi_mqtt_setup_but_as_functions.ino.
+---
 
-* WiFi MQTT - Flutter/wifi_mqtt
+## 📦 Archive
+*These folders represent earlier development stages (LAN & BLE). They are kept for historical reference and are no longer supported.*
 
-Purpose: The initial working version of the Flutter app for MQTT communication. It has the core logic but has been superseded by the improved design in the WiFi MQTT Front End folder.
+**Local Area Network (LAN) Versions**
+* `ESP32/sketch_sep30a` (LAN Variant): Acts as a local web server.
+* `Flutter/wifi_test`: Requires the ESP32's local IP address to function.
 
-**archived Archived / Outdated Code**
-
-These folders represent earlier stages of the project and should be considered deprecated. They are kept for historical reference.
-
-* WiFi LAN Test - ESP32/sketch_sep30a
-
-Status: Outdated.
-
-Description: The ESP32 code for the direct LAN connection (acting as a web server). It works but is limited to local network control.
-
-* WiFi LAN Test - Flutter/wifi_test
-
-Status: Outdated.
-
-Description: The Flutter app for the direct LAN connection. It requires the ESP32's local IP address to function.
-
-* esp32_Transmission_Arduino_IDE_Working
-
-Status: Outdated.
-
-Description: An early version of the project that used Bluetooth Low Energy (BLE) for communication. This was replaced by the more flexible WiFi/MQTT approach.
-
-* esp32_ble_app - Working Copy
-
-Status: Outdated.
-
-Description: The Flutter app corresponding to the BLE version of the project.
+**Bluetooth (BLE) Versions**
+* `esp32_Transmission_Arduino_IDE_Working`: Early BLE prototype.
+* `esp32_ble_app`: Corresponding Flutter app for BLE control.
