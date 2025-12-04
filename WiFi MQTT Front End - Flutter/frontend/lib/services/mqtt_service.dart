@@ -6,21 +6,15 @@ import 'package:mqtt_client/mqtt_server_client.dart';
 import 'package:aquarium_controller_app/models/fish_data.dart';
 import 'package:aquarium_controller_app/models/fish_parameter.dart';
 
-// --- Configuration for Adafruit IO MQTT Broker ---
 const String aioServer = 'io.adafruit.com';
-const String aioUsername = 'XiaohanYu1'; // Your Adafruit IO Username
-const String aioKey = 'xxxxxxxxxxxxxxx'; // Your Adafruit IO Key
+const String aioUsername = 'XiaohanYu1'; // Adafruit IO Username
+const String aioKey = 'xxxxxxxxxxxxxxxxxx'; // ezDO05ltL13LcGrgCVuk2RHpbpTf
 const int aioPort = 1883;
 
-// --- Adafruit IO Feed Names ---
-// These are the names of the feeds you create in your Adafruit IO dashboard.
-
-// Control Feeds (App > ESP32)
 const String heaterControlFeedName = 'HEATER_CTRL';
 const String phControlFeedName = 'PH_CTRL';
 const String pumpControlFeedName = 'PUMP_CTRL';
 
-// Monitoring Feeds (ESP32 > App)
 const String temperatureSensorFeedName = 'TEMP_SENSOR';
 const String phSensorFeedName = 'PH_SENSOR';
 const String systemStatusFeedName = 'SYS_STATUS';
@@ -28,8 +22,6 @@ const String waterAmmoniumFeedName = 'WATER_AMMONIUM';
 const String waterNitrateFeedName = 'WATER_NITRATE';
 const String waterNitriteFeedName = 'WATER_NITRITE';
 
-// Legacy feeds (keeping for backward compatibility)
-// too lazy to remove LOL
 const String statusFeedName = 'aquarium-status';
 const String commandFeedName = 'aquarium-command';
 
@@ -38,11 +30,9 @@ class MqttService with ChangeNotifier {
   String _connectionStatus = 'Disconnected';
   String get connectionStatus => _connectionStatus;
 
-  // Store data for all fish using a Map, with the fish ID as the key.
   final Map<String, FishData> _aquariumData = {};
   Map<String, FishData> get aquariumData => _aquariumData;
 
-  // Water quality status (true = good/green, false = bad/red)
   bool _ammoniumStatus = true;
   bool _nitrateStatus = true;
   bool _nitriteStatus = true;
@@ -51,15 +41,10 @@ class MqttService with ChangeNotifier {
   bool get nitrateStatus => _nitrateStatus;
   bool get nitriteStatus => _nitriteStatus;
 
-  // --- MQTT Topics for Adafruit IO ---
-  // The topic path is always in the format: "username/feeds/feed_name"
-  
-  // Control Topics (App → ESP32)
   final String heaterControlTopic = '$aioUsername/feeds/$heaterControlFeedName';
   final String phControlTopic = '$aioUsername/feeds/$phControlFeedName';
   final String pumpControlTopic = '$aioUsername/feeds/$pumpControlFeedName';
   
-  // Monitoring Topics (ESP32 → App)
   final String temperatureSensorTopic = '$aioUsername/feeds/$temperatureSensorFeedName';
   final String phSensorTopic = '$aioUsername/feeds/$phSensorFeedName';
   final String systemStatusTopic = '$aioUsername/feeds/$systemStatusFeedName';
@@ -339,8 +324,8 @@ class MqttService with ChangeNotifier {
     
     final String type = parameterType.toLowerCase();
     if (type == 'temperature' || type == 'ph') {
-      final double displayDiff = (displayed - defaultValue).abs() / defaultValue;
-      if (displayDiff >= 0.05) 
+      final double displayDiff = (actual - displayed).abs() / displayed;
+      if (displayDiff >= 0.08) 
       {
         return ParameterStatus.highLow;
       }

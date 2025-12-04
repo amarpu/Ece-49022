@@ -18,6 +18,9 @@ dependencies:
   # For state management
   provider: ^6.1.1
 
+  # Desktop/local notifications (Windows, macOS, Linux)
+  local_notifier: ^0.1.6
+
   cupertino_icons: ^1.0.2
 
 dev_dependencies:

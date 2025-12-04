@@ -65,16 +65,6 @@ class FishSettingsScreen extends StatelessWidget {
                     incrementLabel: '±0.1',
                     unit: '',
                   ),
-                  _buildWaterPumpControl(
-                    context,
-                    Icons.water_drop,
-                    'Water',
-                    fish.waterLevel,
-                    (isOn) {
-                      // Publish a command to control the water pump using the new feed structure.
-                      mqttService.publishPumpControl(fishId, isOn ? 1 : 0);
-                    },
-                  ),
                   const SizedBox(height: 30),
                   _buildLegend(),
                   const SizedBox(height: 30),
@@ -179,62 +169,6 @@ class FishSettingsScreen extends StatelessWidget {
                       child: const Text('+', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                     ),
                   ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWaterPumpControl(
-      BuildContext context,
-      IconData icon,
-      String label,
-      FishParameter parameter,
-      Function(bool) onToggle,
-      ) {
-    return Card(
-      color: Colors.blue.shade600,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: Colors.white, size: 24),
-                const SizedBox(width: 10),
-                Text('$label Pump: ', style: const TextStyle(fontSize: 18, color: Colors.white)),
-                Text(
-                  parameter.isOn ? 'ON' : 'OFF',
-                  style: TextStyle(
-                    fontSize: 18, 
-                    fontWeight: FontWeight.bold, 
-                    color: parameter.isOn ? Colors.green.shade300 : Colors.red.shade300
-                  ),
-                ),
-                const Spacer(),
-                StatusIndicator(status: parameter.status, size: 14),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 180,
-                  height: 44,
-                  child: ElevatedButton.icon(
-                    icon: Icon(parameter.isOn ? Icons.power_settings_new : Icons.power_off_outlined),
-                    label: Text(parameter.isOn ? 'Pump ON' : 'Pump OFF'),
-                    onPressed: () => onToggle(!parameter.isOn),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: parameter.isOn ? Colors.green.shade600 : Colors.red.shade600,
-                    ),
-                  ),
-                ),
               ],
             ),
           ],
